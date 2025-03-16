@@ -9,5 +9,6 @@ const upload = multer({
 });
 
 router.post('/upload-edf', upload.any('file'), fileController.uploadFile)
+router.post('/files-lists',fileController.getFiles);
 
 module.exports = router;
