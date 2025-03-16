@@ -4,9 +4,9 @@ const httpstatus = require('../utils/httpstatus.js');
 class ValidatorClass {
     validate(req, res, rules) {
         let validation = new Validator(req.body, rules);
+        console.log(validation.fails(),'validation')
         if (validation.fails()) {
             return httpstatus.invalidInputResponse(validation.errors, res);
-
         } else {
             return false;
         }

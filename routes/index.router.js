@@ -6,7 +6,7 @@ router.get('/', (req, res) => {
       code: 200,
       status: "success",
       API_Version: "v1",
-      Application_Name: "Advacned-url-shortner-app"
+      Application_Name: "ECG-Viewer-Uploader"
     });
 });
   
