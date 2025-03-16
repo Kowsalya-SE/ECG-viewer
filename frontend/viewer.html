@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Viewer</title>
+    <link rel="stylesheet" href="../frontend/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="../frontend/js/script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>ECG Viewer</h2>
+        <canvas id="ecgChart"></canvas>
+        <div class="nav-buttons">
+            <button onclick="prevSegment()">Previous</button>
+            <button onclick="nextSegment()">Next</button>
+        </div>
+        <a href="files.html" class="btn">Back to File List</a>
+    </div>
+</body>
+</html>
