@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Viewer</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>
+        function loadEDFParser() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = "https://cdn.jsdelivr.net/npm/@neurosity/edf-parser";
+                script.onload = () => resolve(window.EDFParser);
+                script.onerror = () => reject(new Error("Failed to load EDFParser"));
+                document.head.appendChild(script);
+            });
+        }
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { width: 80%; margin: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid black; padding: 10px; }
+        canvas { border: 1px solid black; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container" id="upload-page">
+        <h2>Upload ECG File</h2>
+        <input type="file" id="file-input" accept=".edf" />
+        <button onclick="uploadFile()">Upload</button>
+    </div>
+
+    <div class="container" id="files-page" style="display:none;">
+        <h2>Uploaded Files</h2>
+        <table>
+            <tr><th>File Name</th><th>Action</th></tr>
+            <tbody id="file-list"></tbody>
+        </table>
+    </div>
+
+    <div class="container" id="viewer-page" style="display:none;">
+        <h2>ECG Viewer</h2>
+        <div id="ecg-plot"></div>
+        <button onclick="prevSegment()">Previous</button>
+        <button onclick="nextSegment()">Next</button>
+    </div>
+
+    <script>
+        let files = [];
+        let ecgData = [];
+        let currentSegment = 0;
+        const segmentLength = 10;
+
+        function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput.files.length === 0) return alert('Please select a file');
+            
+            const file = fileInput.files[0];
+            files.push(file);
+            displayFiles();
+            fileInput.value = "";
+            document.getElementById('upload-page').style.display = 'none';
+            document.getElementById('files-page').style.display = 'block';
+        }
+
+        function displayFiles() {
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            files.forEach((file, index) => {
+                fileList.innerHTML += `<tr>
+                    <td>${file.name}</td>
+                    <td><button onclick="viewFile(${index})">View</button></td>
+                </tr>`;
+            });
+        }
+
+        function viewFile(index) {
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                await parseEDF(event.target.result);
+            };
+            reader.readAsArrayBuffer(files[index]);
+            document.getElementById('files-page').style.display = 'none';
+            document.getElementById('viewer-page').style.display = 'block';
+        }
+
+        async function parseEDF(buffer) {
+            try {
+                const EDFParser = await loadEDFParser();
+                if (!EDFParser) throw new Error("EDFParser failed to load.");
+                
+                const edf = await EDFParser.parse(buffer);
+                ecgData = edf.signals[0]?.samples || [];
+                
+                if (ecgData.length === 0) {
+                    console.error("No ECG data found.");
+                    alert("No ECG data found in file.");
+                    return;
+                }
+                plotECG();
+            } catch (error) {
+                console.error("EDFParser failed to initialize or parse:", error);
+                alert("Failed to parse EDF file.");
+            }
+        }
+
+        function plotECG() {
+            if (ecgData.length === 0) return;
+            const start = currentSegment * segmentLength * 100;
+            const end = Math.min(start + segmentLength * 100, ecgData.length);
+            const dataSegment = ecgData.slice(start, end);
+            
+            const trace = {
+                x: Array.from({ length: dataSegment.length }, (_, i) => i / 100),
+                y: dataSegment,
+                type: 'scatter',
+                mode: 'lines'
+            };
+            Plotly.newPlot('ecg-plot', [trace]);
+        }
+
+        function nextSegment() {
+            if ((currentSegment + 1) * segmentLength * 100 < ecgData.length) {
+                currentSegment++;
+                plotECG();
+            }
+        }
+
+        function prevSegment() {
+            if (currentSegment > 0) {
+                currentSegment--;
+                plotECG();
+            }
+        }
+    </script>
+</body>
+</html>

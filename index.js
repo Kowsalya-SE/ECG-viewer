@@ -5,6 +5,7 @@ const http = require("http");
 const cors = require("cors");
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,7 +19,7 @@ app.use(bodyParser.urlencoded({extended:'true',limit:'500mb'}))
 app.use(morgan('dev'));
 app.use(cors());
 app.use('/api/v1/storage', express.static('storage'));
-
+app.use('/frontend',express.static('frontend'));
 
 // 🔹 Load Routes from `./routes` (if exists)
 const routeDir = "./routes";
@@ -29,12 +30,8 @@ if (fs.existsSync(routeDir)) {
     });
 } else {
     console.warn("⚠️  Warning: No routes directory found.");
-}
-
-app.use((req,res,next)=> {
-    console.log(`Request size:${req.headers['content-length']} bytes`);
-    next();
-})
+}  
+  
 // 🔹 Handle 404 Errors
 app.use("*", (req, res) => {
   res.status(404).json({

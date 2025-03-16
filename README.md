@@ -20,3 +20,12 @@ knex seed:run
 ----- Additional Commands for migration and seeding -----
 ### knex migrate:make migration_name  --- Create migration 
 ### knex seed:make seed_name
+
+
+###  request-url - frontend and based on backend
+#your-domain-url/frontend/index.html - for file upload
+#your-domain-url/frontend/viewer.html - ecg viewer
+#your-domain-url/frontend/file.html - files list
+
+### request-url - frontend only
+#your-domain-url/frontend/index1.html
