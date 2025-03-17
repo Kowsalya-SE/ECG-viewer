@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edf Decoder</title>
+
+  <style>
+    body {
+      margin: 10px;
+      background-color: #ccecff;
+      font-family: 'Roboto', sans-serif;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2em;
+      color: #4981a2;
+    }
+    #container {
+      width: 80%;
+      margin: auto;
+    }
+    #chartDiv {
+      padding: 20px;
+      background-color: #fafafa;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+    .pagination-buttons {
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      cursor: pointer;
+      background-color: #008fca;
+      color: white;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+
+  <!-- Load Chart.js and Zoom Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  <script src="../dist/edfdecoder.umd.js"></script>
+</head>
+<body>
+
+  <div id="container">
+    <h1>Edf Decoder</h1>
+    <div>
+      Open EDF file <input type="file" id="fileInput">
+      <br>
+      Record Index <input id="slider" type="range" value="0"> <span id="recordIndexPrint">0</span>
+    </div>
+    <div id="chartDiv">
+      <canvas id="chartCanvas"></canvas>
+    </div>
+    
+    <div class="pagination-buttons">
+      <button id="prevBtn" disabled>Previous</button>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+
+  <script>
+    var fileInput = document.getElementById('fileInput');
+    var slider = document.getElementById("slider");
+    var recordIndexPrint = document.getElementById("recordIndexPrint");
+    var prevBtn = document.getElementById("prevBtn");
+    var nextBtn = document.getElementById("nextBtn");
+    var edf = null;
+    var chartInstance = null;
+
+    var decoder = new edfdecoder.EdfDecoder();
+    var currentIndex = 0;
+    var timeWindow = 10; // Show first 100 seconds at a time
+
+    fileInput.addEventListener('change', function(e) {
+      var files = e.target.files;
+      if (!files.length) return;
+
+      var reader = new FileReader();
+      reader.onloadend = function(event) {
+        var buffer = event.target.result;
+        readEdfFile(buffer);
+      };
+      reader.readAsArrayBuffer(files[0]);
+    });
+
+    slider.addEventListener('change', function() {
+      showPlot(0, parseInt(slider.value));
+      recordIndexPrint.innerHTML = slider.value;
+    });
+
+    prevBtn.addEventListener('click', function() {
+      if (currentIndex - timeWindow >= 0) {
+        currentIndex -= timeWindow;
+        showPlot(0, slider.value);
+      }
+      updatePaginationButtons();
+    });
+
+    nextBtn.addEventListener('click', function() {
+      if (currentIndex + timeWindow < edf.getNumberOfRecords()) {
+        currentIndex += timeWindow;
+        showPlot(0, slider.value);
+      }
+      updatePaginationButtons();
+    });
+
+    function readEdfFile(buffer) {
+      edf = null;
+      decoder.setInput(buffer);
+      decoder.decode();
+      var output = decoder.getOutput();
+
+      if (output) {
+        edf = output;
+        slider.value = 0;
+        slider.min = 0;
+        slider.max = edf.getNumberOfRecords();
+        currentIndex = 0;
+        showPlot(0, 0);
+        updatePaginationButtons();
+      }
+    }
+
+    function showPlot(signalIndex, recordIndex) {
+        if (!edf) {
+            alert("Invalid EDF file");
+            return;
+        }
+
+        var ctx = document.getElementById("chartCanvas").getContext("2d");
+        var signal = edf.getPhysicalSignal(signalIndex, recordIndex);
+
+        // FIX: Use correct sample rate retrieval method
+        var samplingRate = edf.header?.sampleRate || edf.sampleRate || 256; // Default to 256Hz if missing
+
+        console.log("Detected Sampling Rate:", samplingRate); // Debugging step
+
+        var start = currentIndex * samplingRate;
+        var end = Math.min(start + timeWindow * samplingRate, signal.length);
+        var time = signal.slice(start, end).map((_, i) => i / samplingRate);
+        var signalSlice = signal.slice(start, end);
+
+        // Destroy previous chart instance
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: "line",
+            data: {
+            labels: time,
+            datasets: [{
+                label: `Signal ${edf.getSignalPhysicalUnit(signalIndex)}`,
+                data: signalSlice,
+                borderColor: "rgba(250, 80, 80, 0.8)",
+                borderWidth: 1,
+                pointRadius: 0,
+            }],
+            },
+            options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: "Time (s)" } },
+                y: { title: { display: true, text: "Amplitude" } },
+            },
+            plugins: {
+                zoom: {
+                pan: { enabled: true, mode: "xy" },
+                zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: "xy",
+                },
+                },
+            },
+            },
+        });
+        }
+
+    function updatePaginationButtons() {
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex + timeWindow >= edf.getNumberOfRecords();
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,134 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edf Decoder</title>
+
+  <style>
+    body {
+      margin: 10px;
+      background-color: #ccecff;
+      font-family: 'Roboto', sans-serif;
+    }
+    h1 {
+      text-align: center;
+      font-size: 4em;
+      color: #4981a2;
+      margin-top: 20px;
+    }
+    #container {
+      margin-left: 25vw;
+      margin-right: 25vw;
+      text-align: center;
+    }
+    #chartDiv {
+      padding: 20px;
+      background-color: #fafafa;
+      margin-top: 50px;
+      border-radius: 15px;
+    }
+  </style>
+
+  <!-- Load Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="../dist/edfdecoder.umd.js"></script>
+</head>
+<body>
+
+  <div id="container">
+    <h1>Edf Decoder</h1>
+    <div>
+      Open EDF file <input type="file" id="fileInput">
+      <br>
+      (Only the first signal is displayed)
+      <br>
+      Record Index <input id="slider" type="range" value="0"> <span id="recordIndexPrint">0</span>
+    </div>
+    <div id="chartDiv">
+      <canvas id="chartCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    var fileInput = document.getElementById('fileInput');
+    var slider = document.getElementById("slider");
+    var recordIndexPrint = document.getElementById("recordIndexPrint");
+    var edf = null;
+    var chartInstance = null;
+
+    var decoder = new edfdecoder.EdfDecoder();
+
+    fileInput.addEventListener('change', function(e) {
+      var files = e.target.files;
+      var reader = new FileReader();
+
+      if (!files.length) return;
+
+      reader.onloadend = function(event) {
+        var buffer = event.target.result;
+        readEdfFile(buffer);
+      };
+      reader.readAsArrayBuffer(files[0]);
+    });
+
+    slider.addEventListener('change', function() {
+      showPlot(0, parseInt(slider.value));
+      recordIndexPrint.innerHTML = slider.value;
+    });
+
+    function readEdfFile(buffer) {
+      edf = null;
+      decoder.setInput(buffer);
+      decoder.decode();
+      var output = decoder.getOutput();
+
+      if (output) {
+        edf = output;
+        slider.value = 0;
+        slider.min = 0;
+        slider.max = edf.getNumberOfRecords();
+        showPlot(0, 0);
+      }
+    }
+
+    function showPlot(signalIndex, recordIndex) {
+      if (!edf) {
+        alert("Invalid EDF file");
+        return;
+      }
+
+      var ctx = document.getElementById("chartCanvas").getContext("2d");
+      var signal = edf.getPhysicalSignal(signalIndex, recordIndex);
+      var time = signal.map((_, i) => i);
+
+      // Destroy previous chart instance
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: time,
+          datasets: [{
+            label: `Signal ${edf.getSignalPhysicalUnit(signalIndex)}`,
+            data: signal,
+            borderColor: "rgba(250, 80, 80, 0.8)",
+            borderWidth: 1,
+            pointRadius: 0,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: "Sample Index" } },
+            y: { title: { display: true, text: "Amplitude" } },
+          },
+        },
+      });
+    }
+  </script>
+
+</body>
+</html>
